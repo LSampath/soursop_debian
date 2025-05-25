@@ -1,0 +1,10 @@
+[Unit]
+Description=Soursop Daemon
+
+[Service]
+ExecStart=/usr/bin/python3 -m soursop.daemon
+Restart=always
+User=soursop
+
+[Install]
+WantedBy=multi-user.target
