@@ -5,7 +5,7 @@ import time
 
 import psutil
 
-from soursop.db_handler import init_db
+from soursop.db_handler import init_db, update_or_insert_usage, get_usage
 
 INTERVAL = 60  # seconds, this value might vary based on your needs
 RUNNING_FLAG = True
@@ -27,23 +27,13 @@ def get_counters(interface):
     return iface.bytes_recv, iface.bytes_sent
 
 
-def save_data(date_str, bytes_recv, bytes_sent):
-    print("Saving data for date:", date_str)
-    print("Bytes received:", bytes_recv)
-    print("Bytes sent:", bytes_sent)
-
-
-def get_bytes_by_date(date_str):
-    return 0, 0  # Placeholder for actual database retrieval logic
-
-
 def main():
     init_db()
     wifi_interface = get_wifi_interface()
     start_date = datetime.date.today()
     start_date_str = start_date.isoformat()
     baseline_recv, baseline_sent = get_counters(wifi_interface)
-    today_recv, today_sent = get_bytes_by_date(start_date_str)
+    today_recv, today_sent = get_usage(start_date_str)
 
     while RUNNING_FLAG:
         time.sleep(INTERVAL)
@@ -53,7 +43,7 @@ def main():
         bytes_recv, bytes_sent = get_counters(wifi_interface)
         delta_recv = today_recv + bytes_recv - baseline_recv
         delta_sent = today_sent + bytes_sent - baseline_sent
-        save_data(today_str, delta_recv, delta_sent)
+        update_or_insert_usage(today_str, delta_recv, delta_sent)
 
         # On day change (past midnight)
         if today_date != start_date:
@@ -69,7 +59,7 @@ def main():
     bytes_recv, bytes_sent = get_counters(wifi_interface)
     delta_recv = today_recv + bytes_recv - baseline_recv
     delta_sent = today_sent + bytes_sent - baseline_sent
-    save_data(today_str, delta_recv, delta_sent)
+    update_or_insert_usage(today_str, delta_recv, delta_sent)
 
 
 def shutdown_handler(sig, frame):
