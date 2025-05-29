@@ -1,29 +1,26 @@
+import datetime
 import sys
-from datetime import datetime
 
-from soursop.db_handler import init_db, get_counter
-
-
-def count():
-    print(f"Current count: {get_counter()}")
+from soursop.db_handler import init_db, get_usage
 
 
-def timenow():
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"Current time is: {now}")
+def bytes_today():
+    start_date = datetime.date.today()
+    start_date_str = start_date.isoformat()
+    today_recv, today_sent = get_usage(start_date_str)
+    print(f"Usage for today; sent: {today_sent}, received: {today_recv}")
 
 
 def main():
     init_db()
     if len(sys.argv) != 2:
+        bytes_today()
         print("Usage: soursop [timenow|count]")
         return
 
     cmd = sys.argv[1]
-    if cmd == "timenow":
-        timenow()
-    elif cmd == "count":
-        count()
+    if cmd == "today":
+        bytes_today()
     else:
         print(f"Unknown command: {cmd}")
 
