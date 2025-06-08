@@ -4,7 +4,11 @@ Description=Soursop Daemon
 [Service]
 ExecStart=/usr/bin/python3 -m soursop.daemon
 Restart=always
-User=soursop
+User=root
+#Environment=PYTHONUNBUFFERED=1
+
+StandardOutput=append:/var/log/soursop/soursop.log
+StandardError=append:/var/log/soursop/soursop.log
 
 [Install]
 WantedBy=multi-user.target

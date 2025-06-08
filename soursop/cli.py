@@ -15,7 +15,7 @@ def main():
     init_db()
     if len(sys.argv) != 2:
         bytes_today()
-        print("Usage: soursop [timenow|count]")
+        print("Usage: soursop [today]")
         return
 
     cmd = sys.argv[1]

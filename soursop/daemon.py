@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import signal
 import time
@@ -7,8 +8,19 @@ import psutil
 
 from soursop.db_handler import init_db, update_or_insert_usage, get_usage
 
-INTERVAL = 60  # seconds, this value might vary based on your needs
+INTERVAL = 10
 RUNNING_FLAG = True
+
+
+def configure_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        handlers=[
+            logging.FileHandler("/var/log/soursop/soursop.log"),
+            logging.StreamHandler()
+        ]
+    )
 
 
 def get_wifi_interface():
@@ -28,7 +40,10 @@ def get_counters(interface):
 
 
 def main():
+    print("Starting Soursop 1.0 daemon...")
     init_db()
+    print("Database initialized.")
+
     wifi_interface = get_wifi_interface()
     start_date = datetime.date.today()
     start_date_str = start_date.isoformat()
@@ -68,8 +83,10 @@ def shutdown_handler(sig, frame):
     print("Shutting down gracefully...")
 
 
-signal.signal(signal.SIGINT, shutdown_handler)
-signal.signal(signal.SIGTERM, shutdown_handler)
-
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
+
+    configure_logging()
+
     main()

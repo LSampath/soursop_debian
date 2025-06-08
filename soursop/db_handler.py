@@ -1,8 +1,8 @@
 import sqlite3
 from pathlib import Path
 
-DB_PATH = "~/.local/share/soursop/soursop.db"
-Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+DB_PATH = Path("/var/lib/soursop/soursop.db").expanduser()
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 def get_connection():
@@ -26,12 +26,14 @@ def init_db():
 
 def get_usage(date_str):
     with get_connection() as conn:
+        print(DB_PATH)
         cur = conn.cursor()
         cur.execute("SELECT bytes_received, bytes_sent FROM daily_usage WHERE date_str = ?", (date_str,))
         result = cur.fetchone()
         if result is None:
             return 0, 0
         else:
+            print(result)
             return result   # result object might not be compatible with the rest of the code, ensure to handle it properly
 
 
