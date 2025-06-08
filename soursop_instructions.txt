@@ -1,0 +1,108 @@
+crazytool
+===========================================
+
+## install python virtual environment
+
+python3 -m venv venv
+
+
+## install fem into os
+
+sudo apt update
+sudo apt install ruby ruby-dev build-essential
+
+sudo gem install --no-document fpm
+
+
+## pi p
+
+
+## run in root folder
+
+fpm -s dir -t deb \
+  -n crazytool \
+  -v 0.1.0 \
+  --after-install scripts/postinstall \
+  --deb-systemd scripts/crazytool.service \
+  --prefix /usr \
+  crazytool/cli.py=/bin/crazytool \
+  crazytool/daemon.py=/bin/crazytool-daemon
+
+
+
+## install deb package
+
+sudo dpkg -i crazytool_0.1.0_amd64.deb
+
+sudo chmod +x /usr/bin/crazytool-daemon
+sudo chmod +x crazytool/cli.py
+
+sudo systemctl daemon-reload
+sudo systemctl restart soursop
+sudo systemctl status crazytool
+
+
+
+sudo chmod +x crazytool/cli.py
+
+
+
+
+sudo mkdir -p /var/lib/soursop
+sudo chown root:root /var/lib/soursop
+sudo chmod 755 /var/lib/soursop
+
+
+sudo useradd -r -s /usr/sbin/nologin soursop
+sudo chown soursop:soursop /var/lib/soursop
+
+
+
+sudo apt install python3-stdeb devscripts
+
+python3 setup.py --command-packages=stdeb.command sdist_dsc --package soursop bdist_deb
+
+python3 setup.py --command-packages=stdeb.command bdist_deb
+
+sudo dpkg -i deb_dist/python3-soursop_0.1.0-1_all.deb
+
+sudo dpkg -r soursop
+
+
+pip install -e .
+
+
+
+
+
+
+
+
+
+
+
+
+
+### compile and install package
+python3 setup.py --command-packages=stdeb.command bdist_deb
+sudo dpkg -i deb_dist/python3-soursop_0.1.0-1_all.deb
+
+### if status says (code=exited, status=1/FAILURE), then try to run it manually using the `ExecStart` command
+/usr/bin/python3 -m soursop.daemon
+
+
+### re execute systemd itself, after upgrading or change systemc setting/configurations
+sudo systemctl daemon-reexec
+
+### reload all ***.service files, without restarting the systemd, do this after changing .service or .timer files
+sudo systemctl daemon-reload
+
+### check daemon status using
+sudo systemctl status soursop
+
+### 
+sudo systemctl enable soursop
+sudo systemctl start soursop
+
+### restart the service. but **.service files cached by systemd won't be changed
+sudo systemctl restart soursop
