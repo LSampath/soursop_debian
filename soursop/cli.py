@@ -41,7 +41,7 @@ def usage_this_week():
     result = get_usage_by_date_range(start_date_str, end_date_str)
     print(f"{'Date':<12} {'Sent':>15} {'Received':>18}")
     print("-" * 45)
-    for date, sent, received in result:
+    for date, received, sent in result:
         sent = convert_bytes_to_human_readable(sent)
         received = convert_bytes_to_human_readable(received)
         print(f"{date:<12} {sent:>15} {received:>18}")
