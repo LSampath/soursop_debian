@@ -6,7 +6,7 @@ import time
 
 import psutil
 
-from soursop.db_handler import init_db, update_or_insert_usage, get_usage
+from soursop.db_handler import init_db, update_or_insert_usage, get_usage_by_date
 
 INTERVAL = 10
 RUNNING_FLAG = True
@@ -48,7 +48,7 @@ def main():
     start_date = datetime.date.today()
     start_date_str = start_date.isoformat()
     baseline_recv, baseline_sent = get_counters(wifi_interface)
-    today_recv, today_sent = get_usage(start_date_str)
+    today_recv, today_sent = get_usage_by_date(start_date_str)
 
     while RUNNING_FLAG:
         time.sleep(INTERVAL)

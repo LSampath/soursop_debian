@@ -24,21 +24,30 @@ def init_db():
         conn.commit()
 
 
-def get_usage(date_str):
+def get_usage_by_date(date_str):
     with get_connection() as conn:
-        print(DB_PATH)
         cur = conn.cursor()
         cur.execute("SELECT bytes_received, bytes_sent FROM daily_usage WHERE date_str = ?", (date_str,))
         result = cur.fetchone()
         if result is None:
-            return 0, 0
+            return 0, 0     # this might be wrong, whole data set might be wrong then
         else:
-            print(result)
             return result   # result object might not be compatible with the rest of the code, ensure to handle it properly
 
 
+def get_usage_by_date_range(start_date_str, end_date_str):
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT date_str, bytes_received, bytes_sent
+            FROM daily_usage
+            WHERE date_str BETWEEN ? AND ?
+            ORDER BY date_str
+        """, (start_date_str, end_date_str))
+        return cur.fetchall()
+
+
 def update_or_insert_usage(date_str, bytes_received, bytes_sent):
-    print(f"Saving usage for {date_str}; received: {bytes_received}, sent: {bytes_sent}")
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute("""

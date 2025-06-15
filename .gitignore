@@ -1,3 +1,6 @@
 # Project exclude paths
 /venv/
-.idea
+/.idea
+/deb_dist
+/dist
+soursop-*.tar.gz
