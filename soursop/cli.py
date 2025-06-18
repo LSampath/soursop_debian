@@ -1,7 +1,7 @@
 import argparse
 import datetime
 
-from soursop.db_handler import init_db, get_usage_by_date, get_usage_by_date_range
+from soursop.db_handler import get_usage_by_date, get_usage_by_date_range
 
 
 def convert_bytes_to_human_readable(bytes_count):
@@ -15,6 +15,15 @@ def convert_bytes_to_human_readable(bytes_count):
         return f"{bytes_count / (1024 ** 3):.2f} GB"
 
 
+def format_date(date):
+    return date.strftime('%A, %B %d, %Y')
+
+
+def format_date_string(date_str):
+    date_obj = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+    return format_date(date_obj)
+
+
 def usage_today():
     """
     Display today's network usage.
@@ -26,7 +35,7 @@ def usage_today():
     today_recv = convert_bytes_to_human_readable(today_recv)
     today_sent = convert_bytes_to_human_readable(today_sent)
 
-    print(f"Date: {today_date.strftime('%A, %B %d, %Y')}\nSent: {today_sent} | Received: {today_recv}")
+    print(f"Date: {format_date(today_date)}\nSent: {today_sent} | Received: {today_recv}")
 
 
 def usage_this_week():
@@ -38,13 +47,16 @@ def usage_this_week():
     start_date = end_date - datetime.timedelta(days=6)
     start_date_str = start_date.isoformat()
 
-    result = get_usage_by_date_range(start_date_str, end_date_str)
-    print(f"{'Date':<12} {'Sent':>15} {'Received':>18}")
-    print("-" * 45)
-    for date, received, sent in result:
-        sent = convert_bytes_to_human_readable(sent)
-        received = convert_bytes_to_human_readable(received)
-        print(f"{date:<12} {sent:>15} {received:>18}")
+    result = get_usage_by_date_range(start_date_str, end_date_str)  # show only dates with correct results
+    if not result:
+        print("No data available for the last 7 days.")
+    else:
+        print(f"{'Date':<25} {'Sent':>20} {'Received':>20}")
+        print("-" * 70)
+        for date, received, sent in result:
+            sent = convert_bytes_to_human_readable(sent)
+            received = convert_bytes_to_human_readable(received)
+            print(f"{format_date_string(date):<25} {sent:>20} {received:>20}")
 
 
 def init_arg_parser():
@@ -62,7 +74,6 @@ def init_arg_parser():
 
 
 def main():
-    init_db()
     init_arg_parser()
 
 

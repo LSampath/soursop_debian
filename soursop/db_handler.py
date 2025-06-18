@@ -1,16 +1,34 @@
+import os
 import sqlite3
+import sys
 from pathlib import Path
 
 DB_PATH = Path("/var/lib/soursop/soursop.db").expanduser()
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def create_db_file():
+    if not DB_PATH.parent.exists():
+        if os.geteuid() == 0:
+            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            print(f"Error: Required directory {DB_PATH.parent} does not exist. "
+                  f"Does your daemon have enough permissions?",
+                  file=sys.stderr)
+            sys.exit(1)
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    return conn
+    if not DB_PATH.parent.exists():
+        print(f"Error: Database file {DB_PATH} does not exist. "
+              f"Has the daemon initialized the system?",
+              file=sys.stderr)
+        sys.exit(1)
+
+    return sqlite3.connect(DB_PATH)
 
 
 def init_db():
+    create_db_file()
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -30,9 +48,9 @@ def get_usage_by_date(date_str):
         cur.execute("SELECT bytes_received, bytes_sent FROM daily_usage WHERE date_str = ?", (date_str,))
         result = cur.fetchone()
         if result is None:
-            return 0, 0     # this might be wrong, whole data set might be wrong then
+            return 0, 0
         else:
-            return result   # result object might not be compatible with the rest of the code, ensure to handle it properly
+            return result
 
 
 def get_usage_by_date_range(start_date_str, end_date_str):

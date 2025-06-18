@@ -1,9 +1,66 @@
 crazytool
 ===========================================
 
-## install python virtual environment
-
+### install python virtual environment
 python3 -m venv venv
+
+### activate venv
+source venv/bin/activate
+
+### deactivate vevn
+deactivate
+
+
+## make build files runnable
+chmod +x remove.sh
+chmod +x setup.sh
+
+
+### compile and install package
+python3 setup.py --command-packages=stdeb.command bdist_deb
+sudo dpkg -i deb_dist/python3-soursop_0.1.0-1_all.deb
+
+### if status says (code=exited, status=1/FAILURE), then try to run it manually using the `ExecStart` command
+/usr/bin/python3 -m soursop.daemon
+
+
+### re execute systemd itself, after upgrading or change systemc setting/configurations
+sudo systemctl daemon-reexec
+
+### reload all ***.service files, without restarting the systemd, do this after changing .service or .timer files
+sudo systemctl daemon-reload
+
+### check daemon status using
+sudo systemctl status soursop
+
+### enable service
+sudo systemctl enable soursop
+
+### start the service
+sudo systemctl start soursop
+
+### restart the service. but **.service files cached by systemd won't be changed
+sudo systemctl restart soursop
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## install fem into os
@@ -83,26 +140,21 @@ pip install -e .
 
 
 
-### compile and install package
-python3 setup.py --command-packages=stdeb.command bdist_deb
-sudo dpkg -i deb_dist/python3-soursop_0.1.0-1_all.deb
-
-### if status says (code=exited, status=1/FAILURE), then try to run it manually using the `ExecStart` command
-/usr/bin/python3 -m soursop.daemon
 
 
-### re execute systemd itself, after upgrading or change systemc setting/configurations
-sudo systemctl daemon-reexec
 
-### reload all ***.service files, without restarting the systemd, do this after changing .service or .timer files
-sudo systemctl daemon-reload
 
-### check daemon status using
-sudo systemctl status soursop
 
-### 
-sudo systemctl enable soursop
-sudo systemctl start soursop
 
-### restart the service. but **.service files cached by systemd won't be changed
-sudo systemctl restart soursop
+
+
+
+
+
+
+
+
+
+
+
+

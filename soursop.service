@@ -6,8 +6,8 @@ ExecStart=/usr/bin/python3 -m soursop.daemon
 Restart=always
 User=root
 
-StandardOutput=append:/var/log/soursop/soursop.log
-StandardError=append:/var/log/soursop/soursop.log
+#StandardOutput=append:/var/log/soursop/soursop.log
+#StandardError=append:/var/log/soursop/soursop.log
 
 [Install]
 WantedBy=multi-user.target

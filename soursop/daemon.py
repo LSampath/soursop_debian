@@ -3,6 +3,7 @@ import logging
 import os
 import signal
 import time
+from pathlib import Path
 
 import psutil
 
@@ -11,13 +12,16 @@ from soursop.db_handler import init_db, update_or_insert_usage, get_usage_by_dat
 INTERVAL = 10
 RUNNING_FLAG = True
 
+LOG_FILE = Path("/var/log/soursop/soursop.log")
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
 
 def configure_logging():
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s',
         handlers=[
-            logging.FileHandler("/var/log/soursop/soursop.log"),
+            logging.FileHandler(LOG_FILE),
             logging.StreamHandler()
         ]
     )
@@ -42,7 +46,6 @@ def get_counters(interface):
 def main():
     print("Starting Soursop 1.0 daemon...")
     init_db()
-    print("Database initialized.")
 
     wifi_interface = get_wifi_interface()
     start_date = datetime.date.today()
