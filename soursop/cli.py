@@ -38,16 +38,16 @@ def usage_today():
     print(f"Date: {format_date(today_date)}\nSent: {today_sent} | Received: {today_recv}")
 
 
-def usage_this_week():
+def daily_usage():
     """
-    Display network usage for the last 7 days, including today.
+    Display daily network usage for the last 7 days, including today.
     """
     end_date = datetime.date.today()
     end_date_str = end_date.isoformat()
     start_date = end_date - datetime.timedelta(days=6)
     start_date_str = start_date.isoformat()
 
-    result = get_usage_by_date_range(start_date_str, end_date_str)  # show only dates with correct results
+    result = get_usage_by_date_range(start_date_str, end_date_str)
     if not result:
         print("No data available for the last 7 days.")
     else:
@@ -66,8 +66,8 @@ def init_arg_parser():
     parser_today = subparsers.add_parser("today", help="Show today's network usage")
     parser_today.set_defaults(func=usage_today)
 
-    parser_week = subparsers.add_parser("week", help="Show last 7 days network usage")
-    parser_week.set_defaults(func=usage_this_week)
+    parser_week = subparsers.add_parser("daily", help="Show last 7 days network usage")
+    parser_week.set_defaults(func=daily_usage)
 
     args = parser.parse_args()
     args.func()
