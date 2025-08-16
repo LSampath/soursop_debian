@@ -3,6 +3,9 @@
 set -e
 set -x
 
+# remove unnecessary files
+rm -rf dist deb_dist soursop.egg-info soursop-*.tar.gz downloadable_build/extracted_package
+
 # Stop and disable the systemd service
 sudo systemctl stop soursop || true
 sudo systemctl disable soursop || true

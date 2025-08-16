@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+# Automatically added by dh_python3
+if command -v py3compile >/dev/null 2>&1; then
+	py3compile -p python3-soursop
+fi
+if command -v pypy3compile >/dev/null 2>&1; then
+	pypy3compile -p python3-soursop  || true
+fi
+
+sudo systemctl daemon-reload                # re-read systemctl unit files. if soursop.service file is changed
+sudo systemctl enable soursop               # makes the service start automatically on boot
+sudo systemctl restart soursop              # (stop the running version and) start the service
+#sudo systemctl status soursop --no-pager    # show service status
