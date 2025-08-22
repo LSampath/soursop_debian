@@ -26,8 +26,12 @@ setup(
         ]
     },
     data_files=[
-        ("lib/systemd/system", ["soursop.service"]),
+        ("lib/systemd/system", ["soursop.service"]),        # this might not be required
     ],
     keywords="soursop, counting, time, cli, tool",
     python_requires=">=3.6",
+    install_requires=[
+        "psutil",
+        "scapy",
+    ]
 )
