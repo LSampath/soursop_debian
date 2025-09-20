@@ -2,7 +2,6 @@ import argparse
 import datetime
 
 from soursop.db_handler import get_usage_by_date, get_usage_by_date_range
-from soursop.scapy_app import start_test_app
 
 
 def convert_bytes_to_human_readable(bytes_count):
@@ -76,7 +75,6 @@ def init_arg_parser():
 
 def main():
     init_arg_parser()
-    start_test_app()
 
 
 if __name__ == "__main__":

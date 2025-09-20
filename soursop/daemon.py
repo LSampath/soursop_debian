@@ -7,16 +7,18 @@ from pathlib import Path
 
 import psutil
 
+from soursop import config
 from soursop.db_handler import init_db, update_or_insert_usage, get_usage_by_date
+from soursop.packet_sniffer import start_packet_sniffing
 
-INTERVAL = 10
-RUNNING_FLAG = True
+
 
 LOG_FILE = Path("/var/log/soursop/soursop.log")
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
 def configure_logging():
+    print("Configuring logging..")
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s',
@@ -53,8 +55,8 @@ def main():
     baseline_recv, baseline_sent = get_counters(wifi_interface)
     today_recv, today_sent = get_usage_by_date(start_date_str)
 
-    while RUNNING_FLAG:
-        time.sleep(INTERVAL)
+    while config.RUNNING_FLAG:
+        time.sleep(config.INTERVAL)
         today_date = datetime.datetime.now().date()
         today_str = today_date.isoformat()
 
@@ -81,15 +83,15 @@ def main():
 
 
 def shutdown_handler(sig, frame):
-    global RUNNING_FLAG
-    RUNNING_FLAG = False
+    config.RUNNING_FLAG = False
     print("Shutting down gracefully...")
 
 
 if __name__ == "__main__":
+    print("Starting soursop daemon service.....")
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
 
     configure_logging()
-
+    start_packet_sniffing()
     main()
