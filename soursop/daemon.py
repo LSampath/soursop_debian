@@ -7,7 +7,7 @@ from pathlib import Path
 
 import psutil
 
-from soursop import config
+from soursop import util
 from soursop.db_handler import init_db, update_or_insert_usage, get_usage_by_date
 from soursop.packet_sniffer import start_packet_sniffing
 
@@ -55,8 +55,8 @@ def main():
     baseline_recv, baseline_sent = get_counters(wifi_interface)
     today_recv, today_sent = get_usage_by_date(start_date_str)
 
-    while config.RUNNING_FLAG:
-        time.sleep(config.INTERVAL)
+    while util.RUNNING_FLAG:
+        time.sleep(util.INTERVAL)
         today_date = datetime.datetime.now().date()
         today_str = today_date.isoformat()
 
@@ -83,7 +83,7 @@ def main():
 
 
 def shutdown_handler(sig, frame):
-    config.RUNNING_FLAG = False
+    util.RUNNING_FLAG = False
     print("Shutting down gracefully...")
 
 
@@ -94,4 +94,4 @@ if __name__ == "__main__":
 
     configure_logging()
     start_packet_sniffing()
-    main()
+    # main()

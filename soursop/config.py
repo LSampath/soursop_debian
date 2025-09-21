@@ -1,2 +1,0 @@
-RUNNING_FLAG = True
-INTERVAL = 10

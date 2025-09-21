@@ -2,26 +2,7 @@ import argparse
 import datetime
 
 from soursop.db_handler import get_usage_by_date, get_usage_by_date_range
-
-
-def convert_bytes_to_human_readable(bytes_count):
-    if bytes_count < 1024:
-        return f"{bytes_count} B"
-    elif bytes_count < 1024 ** 2:
-        return f"{bytes_count / 1024:.2f} KB"
-    elif bytes_count < 1024 ** 3:
-        return f"{bytes_count / (1024 ** 2):.2f} MB"
-    else:
-        return f"{bytes_count / (1024 ** 3):.2f} GB"
-
-
-def format_date(date):
-    return date.strftime('%A, %B %d, %Y')
-
-
-def format_date_string(date_str):
-    date_obj = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-    return format_date(date_obj)
+from soursop.util import convert_bytes_to_human_readable, format_date, format_date_string
 
 
 def usage_today():
