@@ -9,24 +9,21 @@ import psutil
 
 from soursop import util
 from soursop.db_handler import init_db, update_or_insert_usage, get_usage_by_date
-from soursop.packet_sniffer import start_packet_sniffing
-
-
-
-LOG_FILE = Path("/var/log/soursop/soursop.log")
-LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
 def configure_logging():
-    print("Configuring logging..")
+    handlers = [logging.StreamHandler()]
+    log_file = Path("/var/log/soursop/soursop.log")
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    handlers.append(logging.FileHandler(log_file))
+
+    logging.root.handlers.clear()
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        handlers=[
-            logging.FileHandler(LOG_FILE),
-            logging.StreamHandler()
-        ]
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=handlers,
     )
+    logging.info("Logging configuration successful.")
 
 
 def get_wifi_interface():
@@ -46,8 +43,7 @@ def get_counters(interface):
 
 
 def main():
-    print("Starting Soursop 1.0 daemon...")
-    init_db()
+    logging.info("Starting Soursop 1.0 daemon...")
 
     wifi_interface = get_wifi_interface()
     start_date = datetime.date.today()
@@ -70,7 +66,7 @@ def main():
             today_recv, today_sent = 0, 0
             baseline_recv, baseline_sent = bytes_recv, bytes_sent
             start_date = today_date
-            print(f"New day: {today_str}, resetting baseline counters to {baseline_recv}/{baseline_sent} bytes.")
+            logging.info(f"New day: {today_str}, resetting baseline counters to {baseline_recv}/{baseline_sent} bytes.")
 
     # shutdown gracefully
     today_date = datetime.datetime.now().date()
@@ -84,14 +80,15 @@ def main():
 
 def shutdown_handler(sig, frame):
     util.RUNNING_FLAG = False
-    print("Shutting down gracefully...")
+    logging.info("Shutting down gracefully...")
 
 
 if __name__ == "__main__":
-    print("Starting soursop daemon service.....")
+    configure_logging()
+    init_db()
+
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
 
-    configure_logging()
-    start_packet_sniffing()
-    # main()
+    # start_packet_sniffing()
+    main()

@@ -1,3 +1,4 @@
+import logging
 import os
 import sqlite3
 import sys
@@ -10,18 +11,17 @@ def create_db_file():
     if not DB_PATH.parent.exists():
         if os.geteuid() == 0:
             DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+            logging.info(f"SQLite database file created in {DB_PATH}.")
         else:
-            print(f"Error: Required directory {DB_PATH.parent} does not exist. "
-                  f"Does your daemon have enough permissions?",
-                  file=sys.stderr)
+            logging.error(f"Error: Required directory {DB_PATH.parent} does not exist. "
+                          f"Does your daemon have enough permissions?")
             sys.exit(1)
 
 
 def get_connection():
     if not DB_PATH.parent.exists():
-        print(f"Error: Database file {DB_PATH} does not exist. "
-              f"Has the daemon initialized the system?",
-              file=sys.stderr)
+        logging.error(f"Error: Database file {DB_PATH} does not exist. "
+                      f"Has the daemon initialized the system?")
         sys.exit(1)
 
     return sqlite3.connect(DB_PATH)
@@ -40,6 +40,7 @@ def init_db():
         )
         """)
         conn.commit()
+        logging.info("SQLite database initialization successful.")
 
 
 def get_usage_by_date(date_str):

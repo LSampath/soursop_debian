@@ -1,3 +1,4 @@
+import logging
 import os
 from collections import defaultdict
 from datetime import datetime
@@ -63,9 +64,11 @@ def get_connections():
 
 def sniff_packets():
     print("started sniffing thread.....")
+    logging.info("started sniffing thread")
     # sniff(prn=process_packet, store=False, filter="ip", stop_filter=lambda _: not config.RUNNING_FLAG)
     sniff(prn=process_packet, store=False, filter="ip", stop_filter=lambda _: not True)
     print("Stopped sniffing thread...")
+    logging.info("Stopped sniffing thread")
 
 
 def calculate_and_save_usage():

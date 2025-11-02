@@ -5,10 +5,15 @@ Description=Soursop Daemon
 ExecStart=/usr/bin/python3 -m soursop.daemon
 Restart=always
 User=root
+Environment=TERM=dumb
+StateDirectory=soursop
+# LogsDirectory creates /var/log/soursop with correct perms (systemd >= 240)
+LogsDirectory=soursop
+RuntimeDirectory=soursop
+#Environment=SOURSOP_STATE_DIR=/var/lib/soursop
+#Environment=SOURSOP_LOG_DIR=/var/log/soursop
 StandardOutput=journal
-StandardError=journal
-#StandardOutput=append:/var/log/soursop/soursop.log
-#StandardError=append:/var/log/soursop/soursop.log
+StandardError=inherit
 
 [Install]
 WantedBy=multi-user.target
