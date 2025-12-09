@@ -8,7 +8,9 @@ from pathlib import Path
 import psutil
 
 from soursop import util
-from soursop.db_handler import init_db, update_or_insert_usage, get_usage_by_date
+from soursop.db_handler import init_db, update_network_usage, get_network_usage_by_date
+from soursop.packet_sniffer import start_packet_sniffing
+from soursop.utility_monitor import start_utility_monitor
 
 
 def configure_logging():
@@ -49,17 +51,18 @@ def main():
     start_date = datetime.date.today()
     start_date_str = start_date.isoformat()
     baseline_recv, baseline_sent = get_counters(wifi_interface)
-    today_recv, today_sent = get_usage_by_date(start_date_str)
+    today_recv, today_sent = get_network_usage_by_date(start_date_str)
 
     while util.RUNNING_FLAG:
-        time.sleep(util.INTERVAL)
+        logging.info("this is still running.....")
+        time.sleep(util.FIFTEEN_SECONDS)
         today_date = datetime.datetime.now().date()
         today_str = today_date.isoformat()
 
         bytes_recv, bytes_sent = get_counters(wifi_interface)
         delta_recv = today_recv + bytes_recv - baseline_recv
         delta_sent = today_sent + bytes_sent - baseline_sent
-        update_or_insert_usage(today_str, delta_recv, delta_sent)
+        update_network_usage(today_str, delta_recv, delta_sent)
 
         # On day change (past midnight)
         if today_date != start_date:
@@ -75,7 +78,7 @@ def main():
     bytes_recv, bytes_sent = get_counters(wifi_interface)
     delta_recv = today_recv + bytes_recv - baseline_recv
     delta_sent = today_sent + bytes_sent - baseline_sent
-    update_or_insert_usage(today_str, delta_recv, delta_sent)
+    update_network_usage(today_str, delta_recv, delta_sent)
 
 
 def shutdown_handler(sig, frame):
@@ -86,9 +89,10 @@ def shutdown_handler(sig, frame):
 if __name__ == "__main__":
     configure_logging()
     init_db()
+    start_utility_monitor()
 
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
 
-    # start_packet_sniffing()
+    start_packet_sniffing()
     main()

@@ -1,132 +1,151 @@
 import logging
-import os
 from collections import defaultdict
 from datetime import datetime
 from threading import Thread
 from time import sleep
 
-import psutil
-from scapy.interfaces import ifaces
-from scapy.layers.inet import IP
+from scapy.layers.inet import IP, TCP, UDP
+from scapy.layers.inet6 import IPv6
 from scapy.sendrecv import sniff
 
-# MAC addresses of every network adapter
-ALL_MACS = {iface.mac for iface in ifaces.values()}
+from soursop import util
+from soursop.batch_deque import BatchDeque
+from soursop.beans import ProcessInfo, ProcessUsage
+from soursop.db_handler import get_process_usage_by_pid_name
+from soursop.process_handler import get_process_info
+from soursop.utility_monitor import get_wifi_ips, start_utility_monitor, get_connection_pid
 
-# dictionary to map each connection to its corresponding process ID (PID)
-CONNECTION_PID_MAP = {}
-
-# dictionary to map each process ID (PID) to total Upload (0) and Download (1) traffic
-PID_TRAFFIC_MAP = defaultdict(lambda: [0, 0])
-
-# dataframe to track previous traffic usages
-PREVIOUS_USAGES = None
+# thread safe queue to temporarily hold process_usage entries
+_USAGE_QUEUE = BatchDeque()
 
 
-def process_packet(packet):
+def get_packet_connection(packet) -> tuple | None:
+    try:
+        if IP in packet:
+            ip_packet = packet[IP]
+            src_ip, dst_ip = ip_packet.src, ip_packet.dst
+        elif IPv6 in packet:
+            ipv6_packet = packet[IPv6]
+            src_ip, dst_ip = ipv6_packet.src, ipv6_packet.dst
+        else:
+            return None
+
+        if TCP in packet:
+            tcp_packet = packet[TCP]
+            src_port, dst_port = tcp_packet.sport, tcp_packet.dport
+        elif UDP in packet:
+            udp_packet = packet[UDP]
+            src_port, dst_port = udp_packet.sport, udp_packet.dport
+        else:
+            return None
+
+        return src_port, dst_port, src_ip, dst_ip
+    except (AttributeError, IndexError):
+        return None
+
+
+def process_packet(packet) -> None:
     """
     find destination and source ports of each packet to determine which connection this packet belongs
     and update the CONNECTION_PID_MAP
     """
-    global PID_TRAFFIC_MAP
-    try:
-        ip_packet = packet[IP]
-        packet_connection = (ip_packet.sport, ip_packet.dport)
-    except (AttributeError, IndexError):
-        pass
-    else:
-        packet_pid = CONNECTION_PID_MAP.get(packet_connection)
+    global _USAGE_QUEUE
+    wifi_ip_set = get_wifi_ips()
+    packet_connection_info = get_packet_connection(packet)
+
+    if packet_connection_info:
+        src_port, dst_port, src_ip, dst_ip = packet_connection_info
+        packet_pid = get_connection_pid((src_port, dst_port))
+
         if packet_pid:
-            if ip_packet.src in ALL_MACS:
-                PID_TRAFFIC_MAP[packet_pid][0] += len(ip_packet)  # outgoing/upload
-            else:
-                PID_TRAFFIC_MAP[packet_pid][1] += len(ip_packet)  # incoming/download
+            process_info = get_process_info(packet_pid)
+            if process_info:
+                usage = get_process_usage(process_info)
+                if src_ip and src_ip in wifi_ip_set:
+                    usage.outgoing_bytes = len(packet)  # outgoing/upload
+                elif dst_ip and dst_ip in wifi_ip_set:
+                    usage.incoming_bytes = len(packet)  # incoming/download
+                else:
+                    return
+                _USAGE_QUEUE.put(usage)
 
 
-def get_connections():
-    """
-    Keeps listening for connections on this machine, and add them to global CONNECTION_PID_MAP
-    (local_address.port, remove_address.port) -> pid
-    """
-    print("Start connection updating thread....")
-
-    global CONNECTION_PID_MAP
-    # while config.RUNNING_FLAG:
-    while True:
-        for c in psutil.net_connections():
-            if c.laddr and c.raddr and c.pid:
-                CONNECTION_PID_MAP[(c.laddr.port, c.raddr.port)] = c.pid
-                CONNECTION_PID_MAP[(c.raddr.port, c.laddr.port)] = c.pid
-        sleep(1)
-
-    print("stopped connection updating thread...")
+def get_process_usage(process_info: ProcessInfo) -> ProcessUsage:
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    return ProcessUsage(pid=process_info.pid, name=process_info.name, path=process_info.path,
+                        date_str=date_str, hour=now.hour, network='wi-fi')
 
 
-def sniff_packets():
-    print("started sniffing thread.....")
+def sniff_packets() -> None:
     logging.info("started sniffing thread")
-    # sniff(prn=process_packet, store=False, filter="ip", stop_filter=lambda _: not config.RUNNING_FLAG)
-    sniff(prn=process_packet, store=False, filter="ip", stop_filter=lambda _: not True)
-    print("Stopped sniffing thread...")
+    sniff(prn=process_packet, store=False, filter="(ip or ip6) and (tcp or udp)",
+          stop_filter=lambda _: not util.RUNNING_FLAG)
     logging.info("Stopped sniffing thread")
 
 
-def calculate_and_save_usage():
-    global PREVIOUS_USAGES
-    process_info_map = {}
-    for pid, (up_traffic, down_traffic) in PID_TRAFFIC_MAP.items():
-        try:
-            process = psutil.Process(pid)
-        except psutil.NoSuchProcess:
-            continue
-        name = process.name()
-        create_time = get_process_create_time(process)
-        process_info = {
-            "pid": pid, "name": name, "create_time": create_time,
-            "Upload": up_traffic, "Download": down_traffic,
-        }
-        try:
-            process_info["Upload Speed"] = up_traffic - PREVIOUS_USAGES[pid]["Upload"]
-            process_info["Download Speed"] = down_traffic - PREVIOUS_USAGES[pid]["Download"]
-        except (KeyError, AttributeError):
-            process_info["Upload Speed"] = up_traffic
-            process_info["Download Speed"] = down_traffic
-        process_info_map[pid] = process_info
-
-    print_stats(process_info_map)
-
-    PREVIOUS_USAGES = process_info_map
+def group_by_pid_name(entries: list[ProcessUsage]) -> list[list[ProcessUsage]]:
+    groups = defaultdict(list)
+    for entry in entries:
+        key = f"{entry.pid}_{entry.name}"
+        groups[key].append(entry)
+    return list(groups.values())
 
 
-def print_stats(process_info_map):
-    for pid, process_info in process_info_map.items():
-        print(process_info)
-    os.system("clear")
+def cumulate_by_time(entries: list[ProcessUsage]) -> list[ProcessUsage]:
+    cumulated_map = {}
+    for entry in entries:
+        key = f"{entry.date_str}_{entry.hour}"
+        if key in cumulated_map:
+            existing = cumulated_map[key]
+            existing.incoming_bytes += entry.incoming_bytes
+            existing.outgoing_bytes += entry.outgoing_bytes
+            existing.packet_count += entry.packet_count
+        else:
+            cumulated_map[key] = entry
+    return list(cumulated_map.values())
 
 
-def get_process_create_time(process):
-    try:
-        create_time = datetime.fromtimestamp(process.create_time())
-    except OSError:
-        create_time = datetime.fromtimestamp(psutil.boot_time())
-    return create_time
+def merge_entries(old_entries: list[ProcessUsage],
+                  new_entries: list[ProcessUsage]) -> list[ProcessUsage]:
+    result = {f"{e.date_str}_{e.hour}": e for e in old_entries}
+    for new in new_entries:
+        key = f"{new.date_str}_{new.hour}"
+        if key in result:
+            old = result[key]
+            old.incoming_bytes += new.incoming_bytes
+            old.outgoing_bytes += new.outgoing_bytes
+            old.packet_count += new.packet_count
+        else:
+            result[key] = new
+    return list(result.values())
+
+
+def handle_entries(all_entries: list[ProcessUsage]) -> None:
+    pid_name_group_list = group_by_pid_name(all_entries)
+    for pid_name_group in pid_name_group_list:
+        if pid_name_group:
+            pid, name = pid_name_group[0]
+            old_db_entries = get_process_usage_by_pid_name(pid, name)
+            time_cumulated_entries = cumulate_by_time(pid_name_group)
+            merged_entries = merge_entries(old_db_entries, time_cumulated_entries)
+
+    # append to each group
+    # update them
 
 
 def save_usages():
-    print("Started usage saving thread....")
-    # while config.RUNNING_FLAG:
-    while True:
-        calculate_and_save_usage()
-        sleep(1)
-    print("Stopped usage saving thread.....")
+    logging.info("Started usage saving thread....")
+    while util.RUNNING_FLAG:
+        usage_entries = _USAGE_QUEUE.drain()
+        handle_entries(usage_entries)
+        sleep(util.ONE_MINUTE)
+    logging.info("Stopped usage saving thread.....")
 
 
 def start_packet_sniffing():
-    sniff_thread = Thread(target=sniff_packets, daemon=False)
+    sniff_thread = Thread(target=sniff_packets, daemon=False)  # why not daemon ????
     sniff_thread.start()
-
-    connections_thread = Thread(target=get_connections, daemon=True)
-    connections_thread.start()
 
     save_usage_thread = Thread(target=save_usages, daemon=True)
     save_usage_thread.start()
@@ -134,5 +153,10 @@ def start_packet_sniffing():
 
 # remove later
 if __name__ == "__main__":
-    print("Starting soursop daemon service.....")
+    print("Starting soursop daemon service..... using main method")
+    start_utility_monitor()
     start_packet_sniffing()
+
+# TODO list
+# make sure this shutdown gracefully, when daemon is shutting down
+# think about the usage frequency, may be calculation frequency is good enough, saving frequency can be slower

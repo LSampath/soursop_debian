@@ -1,7 +1,9 @@
 from datetime import datetime
 
 RUNNING_FLAG = True
-INTERVAL = 10
+CACHE_TTL = 10
+FIFTEEN_SECONDS = 15
+ONE_MINUTE = 60
 
 
 def convert_bytes_to_human_readable(bytes_count):
