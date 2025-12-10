@@ -11,7 +11,7 @@ from scapy.sendrecv import sniff
 from soursop import util
 from soursop.batch_deque import BatchDeque
 from soursop.beans import ProcessInfo, ProcessUsage
-from soursop.db_handler import get_process_usage_by_pid_name
+from soursop.db_handler import get_process_usage_by_pid_name, update_process_usage
 from soursop.process_handler import get_process_info
 from soursop.utility_monitor import get_wifi_ips, start_utility_monitor, get_connection_pid
 
@@ -127,11 +127,11 @@ def handle_entries(all_entries: list[ProcessUsage]) -> None:
         if pid_name_group:
             pid, name = pid_name_group[0]
             old_db_entries = get_process_usage_by_pid_name(pid, name)
+
             time_cumulated_entries = cumulate_by_time(pid_name_group)
             merged_entries = merge_entries(old_db_entries, time_cumulated_entries)
 
-    # append to each group
-    # update them
+            update_process_usage(merged_entries)
 
 
 def save_usages():

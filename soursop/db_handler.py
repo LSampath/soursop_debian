@@ -52,7 +52,7 @@ def init_db():
                     incoming_bytes INTEGER NOT NULL,
                     outgoing_bytes INTEGER NOT NULL,
                     packet_count INTEGER NOT NULL,
-                    UNIQUE (date_str, hour, pid)
+                    UNIQUE (date_str, hour, pid, name)
                 );
                 """)
         # include indexes as well, if needed
@@ -112,3 +112,30 @@ def get_process_usage_by_pid_name(pid: int, name: str) -> list[ProcessUsage]:
                 packet_count=r["packet_count"]
             ))
         return entries
+
+
+def update_process_usage(entries: list[ProcessUsage]) -> None:
+    insert_update_query = """
+        INSERT INTO process_usage
+        (date_str, hour, pid, name, path, network, incoming_bytes, outgoing_bytes, packet_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (date_str, hour, pid, name)
+        DO UPDATE SET
+            incoming_bytes = excluded.incoming_bytes,
+            outgoing_bytes = excluded.outgoing_bytes,
+            packet_count = excluded.packet_count
+    """
+    params = []
+    for e in entries:
+        params.append((
+            e.date_str, e.hour, e.pid, e.name, e.path,
+            e.network if e.network is not None else "",
+            int(e.incoming_bytes or 0), int(e.outgoing_bytes or 0), int(e.packet_count or 0),
+        ))
+    if not params:
+        return
+
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.executemany(insert_update_query, params)
+        conn.commit()
