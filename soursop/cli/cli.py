@@ -1,7 +1,9 @@
 import argparse
 import datetime
 
-from soursop.db_handler import get_network_usage_by_date, get_network_usage_by_date_range
+from soursop.cli.network_controller import register_network_controller
+from soursop.cli.process_controller import register_process_controller
+from soursop.db.connection import get_network_usage_by_date, get_network_usage_by_date_range
 from soursop.util import convert_bytes_to_human_readable, format_date, format_date_string
 
 
@@ -44,6 +46,9 @@ def init_arg_parser():
     parser = argparse.ArgumentParser(prog="soursop", description="A network analysis tool")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    register_network_controller(subparsers)
+    register_process_controller(subparsers)
+
     parser_today = subparsers.add_parser("today", help="Show today's network usage")
     parser_today.set_defaults(func=usage_today)
 
@@ -51,7 +56,7 @@ def init_arg_parser():
     parser_week.set_defaults(func=network_usage)
 
     args = parser.parse_args()
-    args.func()
+    args.func(args)
 
 
 def main():

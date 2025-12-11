@@ -1,4 +1,5 @@
 import logging
+import time
 from collections import defaultdict
 from datetime import datetime
 from threading import Thread
@@ -8,12 +9,12 @@ from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.inet6 import IPv6
 from scapy.sendrecv import sniff
 
+import soursop.db.process_repository as repository
 from soursop import util
 from soursop.batch_deque import BatchDeque
 from soursop.beans import ProcessInfo, ProcessUsage
-from soursop.db_handler import get_process_usage_by_pid_name, update_process_usage
-from soursop.process_handler import get_process_info
-from soursop.utility_monitor import get_wifi_ips, start_utility_monitor, get_connection_pid
+from soursop.daemon.process_cache import get_process_info
+from soursop.daemon.utility_monitor import get_wifi_ips, start_utility_monitor, get_connection_pid
 
 # thread safe queue to temporarily hold process_usage entries
 _USAGE_QUEUE = BatchDeque()
@@ -70,17 +71,29 @@ def process_packet(packet) -> None:
                 _USAGE_QUEUE.put(usage)
 
 
+def handle_proces_packet(packet) -> None:
+    try:
+        process_packet(packet)
+    except Exception as e:
+        logging.error(f"Error occurred while handling process_packet", e)
+
+
 def get_process_usage(process_info: ProcessInfo) -> ProcessUsage:
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d")
     return ProcessUsage(pid=process_info.pid, name=process_info.name, path=process_info.path,
-                        date_str=date_str, hour=now.hour, network='wi-fi')
+                        date_str=date_str, hour=now.hour, network='wi-fi', packet_count=1)
 
 
 def sniff_packets() -> None:
     logging.info("started sniffing thread")
-    sniff(prn=process_packet, store=False, filter="(ip or ip6) and (tcp or udp)",
-          stop_filter=lambda _: not util.RUNNING_FLAG)
+    while util.RUNNING_FLAG:
+        try:
+            sniff(prn=process_packet, store=False, filter="(ip or ip6) and (tcp or udp)",
+                  stop_filter=lambda _: not util.RUNNING_FLAG)
+        except Exception as e:
+            logging.error(f"Error occurred while sniffing", e)
+            sleep(util.FIFTEEN_SECONDS)
     logging.info("Stopped sniffing thread")
 
 
@@ -123,31 +136,45 @@ def merge_entries(old_entries: list[ProcessUsage],
 
 def handle_entries(all_entries: list[ProcessUsage]) -> None:
     pid_name_group_list = group_by_pid_name(all_entries)
+    logging.info(f"there are differnt {len(pid_name_group_list)} pid_name_groups")
     for pid_name_group in pid_name_group_list:
         if pid_name_group:
-            pid, name = pid_name_group[0]
-            old_db_entries = get_process_usage_by_pid_name(pid, name)
+            first_e = pid_name_group[0]
+            old_db_entries = repository.get_by_pid_name(first_e.pid, first_e.name)
 
             time_cumulated_entries = cumulate_by_time(pid_name_group)
             merged_entries = merge_entries(old_db_entries, time_cumulated_entries)
+            for me in merged_entries:
+                logging.info(f"calculated ProcessUsage entry \n{me}")
 
-            update_process_usage(merged_entries)
+            repository.update(merged_entries)
 
 
-def save_usages():
+def drain_and_handle_entries() -> None:
+    usage_entries = _USAGE_QUEUE.drain()
+    start_time = time.time()
+    handle_entries(usage_entries)
+    end_time = time.time()
+    logging.info(f"Total time taken to save_process_usages {(end_time - start_time)}, "
+                 f"with length - {len(usage_entries)}")
+
+
+def save_process_usages() -> None:
     logging.info("Started usage saving thread....")
     while util.RUNNING_FLAG:
-        usage_entries = _USAGE_QUEUE.drain()
-        handle_entries(usage_entries)
-        sleep(util.ONE_MINUTE)
+        try:
+            drain_and_handle_entries()
+            sleep(util.FIFTEEN_SECONDS)
+        except Exception as e:
+            logging.error(f"Error occurred while handling save_process_usages", e)
     logging.info("Stopped usage saving thread.....")
 
 
 def start_packet_sniffing():
-    sniff_thread = Thread(target=sniff_packets, daemon=False)  # why not daemon ????
+    sniff_thread = Thread(target=sniff_packets, daemon=True)
     sniff_thread.start()
 
-    save_usage_thread = Thread(target=save_usages, daemon=True)
+    save_usage_thread = Thread(target=save_process_usages, daemon=True)
     save_usage_thread.start()
 
 

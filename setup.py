@@ -22,7 +22,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "soursop=soursop.cli:main"
+            "soursop=soursop.cli.cli:main"
         ]
     },
     data_files=[

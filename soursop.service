@@ -2,7 +2,7 @@
 Description=Soursop Daemon
 
 [Service]
-ExecStart=/usr/bin/python3 -m soursop.daemon
+ExecStart=/usr/bin/python3 -m soursop.daemon.daemon
 Restart=always
 User=root
 Environment=TERM=dumb

@@ -4,8 +4,6 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from soursop.beans import ProcessUsage
-
 DB_PATH = Path("/var/lib/soursop/soursop.db").expanduser()
 
 
@@ -94,48 +92,4 @@ def update_network_usage(date_str, bytes_received, bytes_sent):
                 bytes_received=excluded.bytes_received,
                 bytes_sent=excluded.bytes_sent
         """, (date_str, bytes_received, bytes_sent))
-        conn.commit()
-
-
-def get_process_usage_by_pid_name(pid: int, name: str) -> list[ProcessUsage]:
-    with get_connection() as conn:
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM process_usage WHERE pid = ? AND name = ?", (pid, name))
-        rows = cur.fetchall()
-
-        entries = []
-        for r in rows:
-            entries.append(ProcessUsage(
-                pid=r["pid"], name=r["name"], path=r["path"], date_str=r["date_str"], hour=r["hour"], id=r["id"],
-                network=r["network"], incoming_bytes=r["incoming_bytes"], outgoing_bytes=r["outgoing_bytes"],
-                packet_count=r["packet_count"]
-            ))
-        return entries
-
-
-def update_process_usage(entries: list[ProcessUsage]) -> None:
-    insert_update_query = """
-        INSERT INTO process_usage
-        (date_str, hour, pid, name, path, network, incoming_bytes, outgoing_bytes, packet_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (date_str, hour, pid, name)
-        DO UPDATE SET
-            incoming_bytes = excluded.incoming_bytes,
-            outgoing_bytes = excluded.outgoing_bytes,
-            packet_count = excluded.packet_count
-    """
-    params = []
-    for e in entries:
-        params.append((
-            e.date_str, e.hour, e.pid, e.name, e.path,
-            e.network if e.network is not None else "",
-            int(e.incoming_bytes or 0), int(e.outgoing_bytes or 0), int(e.packet_count or 0),
-        ))
-    if not params:
-        return
-
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.executemany(insert_update_query, params)
         conn.commit()

@@ -8,9 +8,9 @@ from pathlib import Path
 import psutil
 
 from soursop import util
-from soursop.db_handler import init_db, update_network_usage, get_network_usage_by_date
-from soursop.packet_sniffer import start_packet_sniffing
-from soursop.utility_monitor import start_utility_monitor
+from soursop.db.connection import init_db, update_network_usage, get_network_usage_by_date
+from soursop.daemon.packet_sniffer import start_packet_sniffing
+from soursop.daemon.utility_monitor import start_utility_monitor
 
 
 def configure_logging():
@@ -54,7 +54,6 @@ def main():
     today_recv, today_sent = get_network_usage_by_date(start_date_str)
 
     while util.RUNNING_FLAG:
-        logging.info("this is still running.....")
         time.sleep(util.FIFTEEN_SECONDS)
         today_date = datetime.datetime.now().date()
         today_str = today_date.isoformat()
@@ -96,3 +95,6 @@ if __name__ == "__main__":
 
     start_packet_sniffing()
     main()
+
+
+# need to write a cleaner scheduler for both calculators
