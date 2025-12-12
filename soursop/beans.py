@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 
@@ -22,3 +23,10 @@ class ProcessInfo:
     name: str
     path: str
     timestamp: float
+
+
+class Level(Enum):
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    HOUR = "hour"

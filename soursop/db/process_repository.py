@@ -28,8 +28,8 @@ def search(from_date: date, to_date: date, name: str) -> list[ProcessUsage]:
     params = [start, end]
 
     sql = """
-        SELECT id, date_str, hour, name, path, incoming_bytes, outgoing_bytes
-        FROM process_usageWHERE date_str BETWEEN ? AND ?
+        SELECT pid, date_str, hour, name, path, incoming_bytes, outgoing_bytes
+        FROM process_usage WHERE date_str BETWEEN ? AND ?
     """
     if name:
         sql += " AND name LIKE ?"
@@ -45,7 +45,8 @@ def search(from_date: date, to_date: date, name: str) -> list[ProcessUsage]:
     result: list[ProcessUsage] = []
     for r in rows:
         result.append(ProcessUsage(
-            pid=int(r["pid"]), name=r["name"], path=r["path"] if r["path"] is not None else "",
+            pid=int(r["pid"]), name=r["name"],
+            path=r["path"] if r["path"] is not None else "",
             date_str=r["date_str"], hour=int(r["hour"]), id=0, network=None,
             incoming_bytes=int(r["incoming_bytes"]) if r["incoming_bytes"] is not None else 0,
             outgoing_bytes=int(r["outgoing_bytes"]) if r["outgoing_bytes"] is not None else 0,

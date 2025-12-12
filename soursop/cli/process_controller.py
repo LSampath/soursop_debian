@@ -3,15 +3,16 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 import soursop.db.process_repository as repository
-from soursop.beans import ProcessUsage
+from soursop.beans import ProcessUsage, Level
+from soursop.util import convert_bytes_to_human_readable, BOLD_START, BOLD_END
 
 
-def normalize_level(argument: str) -> str:
+def parse_level(argument: str) -> Level:
     mapping = {
-        "day": "day", "d": "day",
-        "week": "week", "w": "week",
-        "month": "month", "m": "month",
-        "hour": "hour", "h": "hour",
+        "day": Level.DAY, "d": Level.DAY,
+        "week": Level.WEEK, "w": Level.WEEK,
+        "month": Level.MONTH, "m": Level.MONTH,
+        "hour": Level.HOUR, "h": Level.HOUR,
     }
     key = argument.lower()
     if key in mapping:
@@ -66,26 +67,77 @@ def derive_date_period(args) -> tuple[date, date]:
     return compute_range_from_window(days=1)
 
 
-def group_by_level(entries: list[ProcessUsage], level: Optional[str]) -> list[ProcessUsage]:
-    # implement this
+def derive_time_range(date_str: str, hour: int, level: Level) -> str:
+    date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+    formatted_date = date_obj.strftime("%d %b %Y")
+
+    if level == Level.HOUR:
+        return f"{formatted_date} {hour:02d}:00"
+    elif level == Level.DAY:
+        return formatted_date
+    elif level == Level.MONTH:
+        return date_obj.strftime("%B")
+    else:
+        week_num = date_obj.isocalendar().week
+        return f"{week_num:02d}"
+
+
+def cumulate_by_time_level(entries: list[ProcessUsage], level: Level) -> list[ProcessUsage]:
+    groups: dict[tuple[str, str, str], ProcessUsage] = {}
+    for entry in entries:
+        time_range_str = derive_time_range(entry.date_str, entry.hour, level)
+        key = (entry.name, entry.path, time_range_str)
+        if key in groups:
+            group = groups[key]
+            group.incoming_bytes = int((group.incoming_bytes or 0) + (entry.incoming_bytes or 0))
+            group.outgoing_bytes = int((group.outgoing_bytes or 0) + (entry.outgoing_bytes or 0))
+        else:
+            groups[key] = ProcessUsage(
+                hour=0, pid=0,
+                name=entry.name,
+                path=entry.path or "",
+                date_str=time_range_str,
+                incoming_bytes=int(entry.incoming_bytes or 0),
+                outgoing_bytes=int(entry.outgoing_bytes or 0),
+            )
+    return list(groups.values())
+
+
+def print_grouped_result(entries: list[ProcessUsage]):
+    sorted_list = sorted(entries, key=lambda x: (x.date_str, x.name, x.path)) # sorting does not work, check this
+    if not sorted_list:
+        print("No data available.")
+    else:
+        print(f"{BOLD_START}{'PERIOD':<20} {'SEND':>15} {'RECEIVED':>15} {'':>5} NAME (ADDRESS) {BOLD_END}")
+        for entry in sorted_list:
+            sent = convert_bytes_to_human_readable(entry.outgoing_bytes)
+            received = convert_bytes_to_human_readable(entry.incoming_bytes)
+            print(f"{entry.date_str:<20} {sent:>15} {received:>15} {'':>5} {entry.name} ({entry.path})")
+
+
+def log_command(level: Level, from_date: date, to_date: date, name: Optional[str]):
+    message = "Process usage logs"
+    if name:
+        message += f" for [{name}]"
+    message += f" from [{from_date}] to [{to_date}] cumulated by [{level}]\n"
+    print(message)
 
 
 def handle_process_request(args):
-    level = args.level if args.level else "hour"
-    start_date, to_date = derive_date_period(args)
+    level = args.level if args.level else Level.HOUR
+    from_date, to_date = derive_date_period(args)
     name = args.name if args.name else None
-    print(f"log level - {level}, name - {name} start_date - {start_date}, end_date - {to_date}")
+    log_command(level, from_date, to_date, name)
 
-    entries = repository.search(start_date, to_date, name)
-    grouped = group_by_level(entries, level)
-    print_result(grouped)
+    entries = repository.search(from_date, to_date, name)
+    grouped = cumulate_by_time_level(entries, level or Level.HOUR)
+    print_grouped_result(grouped)
 
 
 def register_process_controller(subparsers):
     process_parser = subparsers.add_parser("process", help="Total usage of each process")
 
-    process_parser.add_argument("-l", "--level", dest="level",
-                                type=normalize_level, choices=["day", "week", "month", "hour"],
+    process_parser.add_argument("-l", "--level", dest="level", type=parse_level,
                                 required=False, help="Aggregation level: day/d, week/w or month/m")
 
     process_parser.add_argument("-n", "--name", dest="name", type=str, required=False, help="Process name")

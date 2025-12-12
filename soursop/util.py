@@ -5,6 +5,10 @@ CACHE_TTL = 10
 FIFTEEN_SECONDS = 15
 ONE_MINUTE = 60
 
+BOLD_START = "\033[1m"
+BOLD_END = "\033[0m"
+
+
 
 def convert_bytes_to_human_readable(bytes_count):
     if bytes_count < 1024:
