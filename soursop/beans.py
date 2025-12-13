@@ -25,6 +25,16 @@ class ProcessInfo:
     timestamp: float
 
 
+@dataclass
+class NetworkUsage:
+    id: Optional[int] = 0,
+    network: Optional[str] = None
+    date_str: Optional[str] = None,
+    hour: Optional[int] = 0
+    incoming_bytes: Optional[int] = 0,
+    outgoing_bytes: Optional[int] = 0
+
+
 class Level(Enum):
     DAY = "day"
     WEEK = "week"

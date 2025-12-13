@@ -33,40 +33,31 @@ def init_db():
         cur = conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS network_usage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date_str TEXT NOT NULL UNIQUE,
-            bytes_received INTEGER NOT NULL,
-            bytes_sent INTEGER NOT NULL);
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date_str TEXT NOT NULL,
+                hour INTEGER NOT NULL,
+                network TEXT NOT NULL,
+                incoming_bytes INTEGER NOT NULL,
+                outgoing_bytes INTEGER NOT NULL,
+                UNIQUE (date_str, hour, network))
         """)
         cur.execute("""
-                CREATE TABLE IF NOT EXISTS process_usage (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    date_str TEXT NOT NULL,
-                    hour INTEGER NOT NULL,
-                    pid INTEGER NOT NULL,
-                    name TEXT NOT NULL,
-                    path TEXT NULL,
-                    network TEXT NOT NULL,
-                    incoming_bytes INTEGER NOT NULL,
-                    outgoing_bytes INTEGER NOT NULL,
-                    packet_count INTEGER NOT NULL,
-                    UNIQUE (date_str, hour, pid, name)
-                );
-                """)
+            CREATE TABLE IF NOT EXISTS process_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date_str TEXT NOT NULL,
+                hour INTEGER NOT NULL,
+                pid INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                path TEXT NULL,
+                network TEXT NOT NULL,
+                incoming_bytes INTEGER NOT NULL,
+                outgoing_bytes INTEGER NOT NULL,
+                packet_count INTEGER NOT NULL,
+                UNIQUE (date_str, hour, pid, name))
+        """)
         # include indexes as well, if needed
         conn.commit()
         logging.info("SQLite database initialization successful.")
-
-
-def get_network_usage_by_date(date_str):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT bytes_received, bytes_sent FROM network_usage WHERE date_str = ?", (date_str,))
-        result = cur.fetchone()
-        if result is None:
-            return 0, 0
-        else:
-            return result
 
 
 def get_network_usage_by_date_range(start_date_str, end_date_str):
@@ -79,17 +70,3 @@ def get_network_usage_by_date_range(start_date_str, end_date_str):
             ORDER BY date_str
         """, (start_date_str, end_date_str))
         return cur.fetchall()
-
-
-def update_network_usage(date_str, bytes_received, bytes_sent):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO network_usage (date_str, bytes_received, bytes_sent)
-            VALUES (?, ?, ?)
-            ON CONFLICT(date_str) DO 
-            UPDATE SET
-                bytes_received=excluded.bytes_received,
-                bytes_sent=excluded.bytes_sent
-        """, (date_str, bytes_received, bytes_sent))
-        conn.commit()

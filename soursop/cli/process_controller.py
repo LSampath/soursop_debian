@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 import soursop.db.process_repository as repository
+from soursop import util
 from soursop.beans import ProcessUsage, Level
 from soursop.util import convert_bytes_to_human_readable, BOLD_START, BOLD_END
 
@@ -21,9 +22,8 @@ def parse_level(argument: str) -> Level:
 
 
 def parse_date(s: str) -> date:
-    date_format = "%Y-%m-%d"
     try:
-        return datetime.strptime(s, date_format).date()
+        return datetime.strptime(s, util.DB_DATE_FORMAT).date()
     except ValueError:
         raise ArgumentTypeError(f"Invalid date {s!r}, expected YYYY-MM-DD")
 
@@ -68,8 +68,8 @@ def derive_date_period(args) -> tuple[date, date]:
 
 
 def derive_time_range(date_str: str, hour: int, level: Level) -> str:
-    date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-    formatted_date = date_obj.strftime("%d %b %Y")
+    date_obj = datetime.strptime(date_str, util.DB_DATE_FORMAT).date()
+    formatted_date = date_obj.strftime(util.CONSOLE_DATE_FORMAT)
 
     if level == Level.HOUR:
         return f"{formatted_date} {hour:02d}:00"
@@ -104,7 +104,7 @@ def cumulate_by_time_level(entries: list[ProcessUsage], level: Level) -> list[Pr
 
 
 def print_grouped_result(entries: list[ProcessUsage]):
-    sorted_list = sorted(entries, key=lambda x: (x.date_str, x.name, x.path)) # sorting does not work, check this
+    sorted_list = sorted(entries, key=lambda x: (x.date_str, x.name, x.path))  # sorting does not work, check this
     if not sorted_list:
         print("No data available.")
     else:

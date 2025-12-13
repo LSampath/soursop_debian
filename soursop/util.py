@@ -1,13 +1,15 @@
 from datetime import datetime
 
 RUNNING_FLAG = True
-CACHE_TTL = 10
+TEN_SECONDS = 10
+FIVE_SECONDS = 5
 FIFTEEN_SECONDS = 15
 ONE_MINUTE = 60
 
 BOLD_START = "\033[1m"
 BOLD_END = "\033[0m"
-
+DB_DATE_FORMAT = "%Y-%m-%d"
+CONSOLE_DATE_FORMAT = "%d %b %Y"
 
 
 def convert_bytes_to_human_readable(bytes_count):

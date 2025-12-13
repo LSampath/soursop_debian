@@ -14,7 +14,7 @@ from soursop import util
 from soursop.batch_deque import BatchDeque
 from soursop.beans import ProcessInfo, ProcessUsage
 from soursop.daemon.process_cache import get_process_info
-from soursop.daemon.utility_monitor import get_wifi_ips, start_utility_monitor, get_connection_pid
+from soursop.daemon.utility_monitor import get_wifi_ips, get_connection_pid
 
 # thread safe queue to temporarily hold process_usage entries
 _USAGE_QUEUE = BatchDeque()
@@ -80,7 +80,7 @@ def handle_proces_packet(packet) -> None:
 
 def get_process_usage(process_info: ProcessInfo) -> ProcessUsage:
     now = datetime.now()
-    date_str = now.strftime("%Y-%m-%d")
+    date_str = now.strftime(util.DB_DATE_FORMAT)
     return ProcessUsage(pid=process_info.pid, name=process_info.name, path=process_info.path,
                         date_str=date_str, hour=now.hour, network='wi-fi', packet_count=1)
 
@@ -93,7 +93,7 @@ def sniff_packets() -> None:
                   stop_filter=lambda _: not util.RUNNING_FLAG)
         except Exception as e:
             logging.error(f"Error occurred while sniffing", e)
-            sleep(util.FIFTEEN_SECONDS)
+            sleep(util.FIVE_SECONDS)
     logging.info("Stopped sniffing thread")
 
 
@@ -136,7 +136,6 @@ def merge_entries(old_entries: list[ProcessUsage],
 
 def handle_entries(all_entries: list[ProcessUsage]) -> None:
     pid_name_group_list = group_by_pid_name(all_entries)
-    logging.info(f"there are differnt {len(pid_name_group_list)} pid_name_groups")
     for pid_name_group in pid_name_group_list:
         if pid_name_group:
             first_e = pid_name_group[0]
@@ -144,19 +143,12 @@ def handle_entries(all_entries: list[ProcessUsage]) -> None:
 
             time_cumulated_entries = cumulate_by_time(pid_name_group)
             merged_entries = merge_entries(old_db_entries, time_cumulated_entries)
-            for me in merged_entries:
-                logging.info(f"calculated ProcessUsage entry \n{me}")
-
             repository.update(merged_entries)
 
 
 def drain_and_handle_entries() -> None:
     usage_entries = _USAGE_QUEUE.drain()
-    start_time = time.time()
     handle_entries(usage_entries)
-    end_time = time.time()
-    logging.info(f"Total time taken to save_process_usages {(end_time - start_time)}, "
-                 f"with length - {len(usage_entries)}")
 
 
 def save_process_usages() -> None:
@@ -170,19 +162,12 @@ def save_process_usages() -> None:
     logging.info("Stopped usage saving thread.....")
 
 
-def start_packet_sniffing():
-    sniff_thread = Thread(target=sniff_packets, daemon=True)
+def start_process_tracking():
+    sniff_thread = Thread(target=sniff_packets, daemon=False)
     sniff_thread.start()
 
-    save_usage_thread = Thread(target=save_process_usages, daemon=True)
+    save_usage_thread = Thread(target=save_process_usages, daemon=False)
     save_usage_thread.start()
-
-
-# remove later
-if __name__ == "__main__":
-    print("Starting soursop daemon service..... using main method")
-    start_utility_monitor()
-    start_packet_sniffing()
 
 # TODO list
 # make sure this shutdown gracefully, when daemon is shutting down
