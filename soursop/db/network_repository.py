@@ -39,3 +39,28 @@ def update(entry: NetworkUsage):
         cur = conn.cursor()
         cur.execute(query, params)
         conn.commit()
+
+
+def search(from_date: date, to_date: date) -> list[NetworkUsage]:
+    start = from_date.isoformat()
+    end = to_date.isoformat()
+    params = [start, end]
+    sql = """
+        SELECT pid, date_str, hour, name, path, incoming_bytes, outgoing_bytes
+        FROM process_usage WHERE date_str BETWEEN ? AND ?
+        ORDER BY date_str, hour, pid
+    """
+    with get_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+
+    result = []
+    for r in rows:
+        result.append(NetworkUsage(
+            date_str=r["date_str"], hour=int(r["hour"]),
+            incoming_bytes=int(r["incoming_bytes"]) if r["incoming_bytes"] is not None else 0,
+            outgoing_bytes=int(r["outgoing_bytes"]) if r["outgoing_bytes"] is not None else 0
+        ))
+    return result

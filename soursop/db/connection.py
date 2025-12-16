@@ -58,15 +58,3 @@ def init_db():
         # include indexes as well, if needed
         conn.commit()
         logging.info("SQLite database initialization successful.")
-
-
-def get_network_usage_by_date_range(start_date_str, end_date_str):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT date_str, bytes_received, bytes_sent
-            FROM network_usage
-            WHERE date_str BETWEEN ? AND ?
-            ORDER BY date_str
-        """, (start_date_str, end_date_str))
-        return cur.fetchall()

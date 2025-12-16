@@ -26,7 +26,6 @@ def search(from_date: date, to_date: date, name: str) -> list[ProcessUsage]:
     start = from_date.isoformat()
     end = to_date.isoformat()
     params = [start, end]
-
     sql = """
         SELECT pid, date_str, hour, name, path, incoming_bytes, outgoing_bytes
         FROM process_usage WHERE date_str BETWEEN ? AND ?
@@ -42,7 +41,7 @@ def search(from_date: date, to_date: date, name: str) -> list[ProcessUsage]:
         cur.execute(sql, params)
         rows = cur.fetchall()
 
-    result: list[ProcessUsage] = []
+    result = []
     for r in rows:
         result.append(ProcessUsage(
             pid=int(r["pid"]), name=r["name"],

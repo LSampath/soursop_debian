@@ -52,7 +52,6 @@ def listen_and_save_usage():
 
         new_usage.incoming_bytes = starting_incoming + bytes_recv - baseline_recv
         new_usage.outgoing_bytes = starting_outgoing + bytes_sent - baseline_sent
-        logging.info(f"Saving network usage: {new_usage}")
         repository.update(new_usage)
 
 
@@ -68,7 +67,7 @@ def sniff_network():
         try:
             listen_and_save_usage()
         except Exception as e:
-            logging.error(f"Error occurred while handling save_process_usages", e)
+            logging.info(f"Error occurred while handling save_process_usages", e)
             sleep(util.FIVE_SECONDS)
     logging.info("Stopped network sniffing thread....")
 
