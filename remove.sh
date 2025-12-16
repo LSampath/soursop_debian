@@ -3,6 +3,8 @@
 set -e
 set -x
 
+
+
 # remove unnecessary files
 rm -rf dist deb_dist soursop.egg-info soursop-*.tar.gz downloadable_build/extracted_package
 
@@ -12,7 +14,8 @@ sudo systemctl disable soursop || true
 sudo systemctl daemon-reload
 
 # Remove the package
-sudo dpkg -r python3-soursop || true
+sudo dpkg -P python3-soursop || true
+sudo dpkg -P soursop || true
 
 # Remove leftover files and systemd service
 sudo rm -rf /var/log/soursop

@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 with open("README.md", "r", encoding="utf-8") as readme_file:
     long_description = readme_file.read()
@@ -12,7 +12,7 @@ setup(
     author="Lahiru Sampath",
     author_email="lsampath210@gmail.com",
     license="MIT",
-    packages=["soursop"],
+    packages=find_packages(),
     package_dir={"soursop": "soursop/"},
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -22,11 +22,11 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "soursop=soursop.cli:main"
+            "soursop=soursop.cli.cli:main"
         ]
     },
     data_files=[
-        ("lib/systemd/system", ["soursop.service"]),
+        ("lib/systemd/system", ["soursop.service"]),  # this might not be required
     ],
     keywords="soursop, counting, time, cli, tool",
     python_requires=">=3.6",
