@@ -122,6 +122,7 @@ soursop process --day 7 --name chrome
 
 All example flag combinations shown for soursop process are valid here as well;
 this command additionally supports the `--name` flag.
+
 ---
 
 ## 📜 License
