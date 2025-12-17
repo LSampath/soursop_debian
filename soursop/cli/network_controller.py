@@ -54,7 +54,7 @@ def register_network_controller(subparsers):
     network_parser = subparsers.add_parser("network", help="Total usage of network adapter")
 
     network_parser.add_argument("-l", "--level", dest="level", type=util.parse_level,
-                                required=False, help="Aggregation level: day/d, week/w or month/m")
+                                required=False, help="Aggregation level: hour/h, day/d, week/w or month/m")
 
     network_parser.add_argument("-f", "--from", dest="from_date", type=util.parse_date,
                                 required=False, help="Start date YYYY-MM-DD")

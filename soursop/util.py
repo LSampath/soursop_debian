@@ -29,15 +29,15 @@ def convert_bytes_to_human_readable(bytes_count):
 
 def parse_level(argument: str) -> Level:
     mapping = {
+        "hour": Level.HOUR, "h": Level.HOUR,
         "day": Level.DAY, "d": Level.DAY,
         "week": Level.WEEK, "w": Level.WEEK,
         "month": Level.MONTH, "m": Level.MONTH,
-        "hour": Level.HOUR, "h": Level.HOUR,
     }
     key = argument.lower()
     if key in mapping:
         return mapping[key]
-    raise ArgumentTypeError(f"invalid --level value: {argument!r}. Allowed: day/d, week/w, month/m, hour/h")
+    raise ArgumentTypeError(f"invalid --level value: {argument!r}. Allowed: hour/h, day/d, week/w, month/m")
 
 
 def parse_date(s: str) -> date:

@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
 
 import soursop.db.process_repository as repository
@@ -62,7 +62,7 @@ def register_process_controller(subparsers):
     process_parser = subparsers.add_parser("process", help="Total usage of each process")
 
     process_parser.add_argument("-l", "--level", dest="level", type=util.parse_level,
-                                required=False, help="Aggregation level: day/d, week/w or month/m")
+                                required=False, help="Aggregation level: hour/h, day/d, week/w or month/m")
 
     process_parser.add_argument("-n", "--name", dest="name", type=str, required=False, help="Process name")
 
