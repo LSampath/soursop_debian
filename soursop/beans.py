@@ -29,10 +29,20 @@ class ProcessInfo:
 class NetworkUsage:
     id: Optional[int] = 0,
     network: Optional[str] = None
-    date_str: Optional[str] = None,
+    date_str: Optional[str] = None
     hour: Optional[int] = 0
-    incoming_bytes: Optional[int] = 0,
+    incoming_bytes: Optional[int] = 0
     outgoing_bytes: Optional[int] = 0
+
+
+@dataclass
+class NetworkInterface:
+    name: str
+    current_usage: Optional[NetworkUsage] = None
+    saved_incoming: Optional[int] = 0
+    saved_outgoing: Optional[int] = 0
+    baseline_incoming: Optional[int] = 0
+    baseline_outgoing: Optional[int] = 0
 
 
 class Level(Enum):

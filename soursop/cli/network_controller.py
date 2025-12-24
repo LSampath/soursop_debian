@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Optional
 
 import soursop.db.network_repository as repository
 from soursop import util
@@ -6,10 +7,10 @@ from soursop.beans import Level, NetworkUsage
 
 
 def cumulate_by_time_level(entries: list[NetworkUsage], level: Level) -> list[NetworkUsage]:
-    groups: dict[str, NetworkUsage] = {}
+    groups: dict[tuple[str, str], NetworkUsage] = {}
     for entry in entries:
         time_range_str = util.derive_time_range(entry.date_str, entry.hour, level)
-        key = time_range_str
+        key = (entry.network, time_range_str)
         if key in groups:
             group = groups[key]
             group.incoming_bytes = int((group.incoming_bytes or 0) + (entry.incoming_bytes or 0))
@@ -17,6 +18,7 @@ def cumulate_by_time_level(entries: list[NetworkUsage], level: Level) -> list[Ne
         else:
             groups[key] = NetworkUsage(
                 date_str=time_range_str,
+                network=entry.network,
                 incoming_bytes=int(entry.incoming_bytes or 0),
                 outgoing_bytes=int(entry.outgoing_bytes or 0),
             )
@@ -28,25 +30,29 @@ def print_grouped_result(entries: list[NetworkUsage]):
     if not sorted_list:
         print("No data available.")
     else:
-        print(f"{util.BOLD_START}{'PERIOD':<20} {'SEND':>15} {'RECEIVED':>15}{util.BOLD_END}")
+        print(f"{util.BOLD_START}{'PERIOD':<20} {'SEND':>15} {'RECEIVED':>15} {'NETWORK':>15} {util.BOLD_END}")
         for entry in sorted_list:
             sent = util.convert_bytes_to_human_readable(entry.outgoing_bytes)
             received = util.convert_bytes_to_human_readable(entry.incoming_bytes)
-            print(f"{entry.date_str:<20} {sent:>15} {received:>15}")
+            print(f"{entry.date_str:<20} {sent:>15} {received:>15} {entry.network:>15}")
 
 
 def handle_network_request(args):
     level = args.level if args.level else Level.HOUR
     from_date, to_date = util.derive_date_period(args)
-    log_command(level, from_date, to_date)
+    network = args.network if args.network else None
+    log_command(level, from_date, to_date, network)
 
-    entries = repository.search(from_date, to_date)
+    entries = repository.search(from_date, to_date, network)
     grouped = cumulate_by_time_level(entries, level or Level.HOUR)
     print_grouped_result(grouped)
 
 
-def log_command(level: Level, from_date: date, to_date: date):
-    message = f"Network usage logs from [{from_date}] to [{to_date}] cumulated by [{level}]\n"
+def log_command(level: Level, from_date: date, to_date: date, network: Optional[str]):
+    message = "Network usage logs"
+    if network:
+        message += f" for [{network}]"
+    message += f" from [{from_date}] to [{to_date}] cumulated by [{level}]\n"
     print(message)
 
 
@@ -60,6 +66,8 @@ def register_network_controller(subparsers):
                                 required=False, help="Start date YYYY-MM-DD")
     network_parser.add_argument("-t", "--to", dest="to_date", type=util.parse_date,
                                 required=False, help="End date YYYY-MM-DD")
+
+    network_parser.add_argument("-n", "--network", dest="network", type=str, required=False, help="Network interface")
 
     time_window_group = network_parser.add_mutually_exclusive_group(required=False)
     time_window_group.add_argument("-d", "--day", dest="day", type=int, help="Look back N days")
