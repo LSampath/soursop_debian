@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import date
+from typing import Optional
 
 from soursop.beans import ProcessUsage
 from soursop.db.connection import get_connection
@@ -22,7 +23,7 @@ def get_by_pid_name(pid: int, name: str) -> list[ProcessUsage]:
         return entries
 
 
-def search(from_date: date, to_date: date, name: str) -> list[ProcessUsage]:
+def search(from_date: date, to_date: date, name: Optional[str]) -> list[ProcessUsage]:
     start = from_date.isoformat()
     end = to_date.isoformat()
     params = [start, end]
@@ -33,7 +34,7 @@ def search(from_date: date, to_date: date, name: str) -> list[ProcessUsage]:
     if name:
         sql += " AND name LIKE ?"
         params.append(f"%{name}%")
-    sql += " ORDER BY date_str, hour, pid;"
+    sql += " ORDER BY date_str, hour, pid"      # what is the most optimal order here??
 
     with get_connection() as conn:
         conn.row_factory = sqlite3.Row

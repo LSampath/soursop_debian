@@ -1,5 +1,4 @@
 import logging
-import time
 from collections import defaultdict
 from datetime import datetime
 from threading import Thread
@@ -82,7 +81,7 @@ def get_process_usage(process_info: ProcessInfo) -> ProcessUsage:
     now = datetime.now()
     date_str = now.strftime(util.DB_DATE_FORMAT)
     return ProcessUsage(pid=process_info.pid, name=process_info.name, path=process_info.path,
-                        date_str=date_str, hour=now.hour, network='wi-fi', packet_count=1)
+                        date_str=date_str, hour=now.hour, network=None, packet_count=1)
 
 
 def sniff_packets() -> None:

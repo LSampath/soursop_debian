@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import date
+from typing import Optional
 
 from soursop import util
 from soursop.beans import NetworkUsage
@@ -24,7 +25,7 @@ def get_usage_bytes(date_obj: date, hour: int, network: str) -> tuple[int, int]:
             return incoming, outgoing
 
 
-def update(entries: list[NetworkUsage]):
+def update(entries: list[NetworkUsage]) -> None:
     params = [(e.date_str, e.hour, e.network, e.incoming_bytes, e.outgoing_bytes) for e in entries]
     query = """
         INSERT INTO network_usage 
@@ -38,19 +39,23 @@ def update(entries: list[NetworkUsage]):
         return
     with get_connection() as conn:
         cur = conn.cursor()
-        cur.execute(query, params)
+        cur.executemany(query, params)
         conn.commit()
 
 
-def search(from_date: date, to_date: date) -> list[NetworkUsage]:
+def search(from_date: date, to_date: date, network: Optional[str]) -> list[NetworkUsage]:
     start = from_date.isoformat()
     end = to_date.isoformat()
     params = [start, end]
     sql = """
-        SELECT pid, date_str, hour, name, path, incoming_bytes, outgoing_bytes
-        FROM process_usage WHERE date_str BETWEEN ? AND ?
-        ORDER BY date_str, hour, pid
+        SELECT date_str, hour, network, incoming_bytes, outgoing_bytes
+        FROM network_usage WHERE date_str BETWEEN ? AND ?
     """
+    if network:
+        sql += " AND network LIKE ?"
+        params.append(f"%{network}%")
+    sql += " ORDER BY date_str, hour, network"
+
     with get_connection() as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
@@ -60,7 +65,7 @@ def search(from_date: date, to_date: date) -> list[NetworkUsage]:
     result = []
     for r in rows:
         result.append(NetworkUsage(
-            date_str=r["date_str"], hour=int(r["hour"]),
+            date_str=r["date_str"], hour=int(r["hour"]), network=r["network"],
             incoming_bytes=int(r["incoming_bytes"]) if r["incoming_bytes"] is not None else 0,
             outgoing_bytes=int(r["outgoing_bytes"]) if r["outgoing_bytes"] is not None else 0
         ))

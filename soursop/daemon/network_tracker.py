@@ -54,26 +54,26 @@ def listen_and_save_usage():
     interface_info_map = create_network_interface_map(start_date, start_hour, interfaces)
 
     while util.RUNNING_FLAG:
-        sleep(util.FIFTEEN_SECONDS)
         now_date, now_hour = get_time_now()
         now_date_str = now_date.strftime(util.DB_DATE_FORMAT)
 
         for name, info in interface_info_map.items():
             info.current_usage = NetworkUsage(network=name, date_str=now_date_str, hour=now_hour)
-            bytes_incoming, bytes_outgoing = get_counters(name)
+            current_incoming, current_outgoing = get_counters(name)
 
             if start_hour != now_hour:
                 info.saved_incoming, info.saved_outgoing = 0, 0
-                info.baseline_incoming, info.baseline_incoming = bytes_incoming, bytes_outgoing
+                info.baseline_incoming, info.baseline_outgoing= current_incoming, current_outgoing
                 start_hour = now_hour
-                logging.info(f"New time period: {now_date_str}:{start_hour}, for network: {name}"
-                             f"resetting baseline counters to {bytes_incoming}/{bytes_outgoing} bytes.")
+                logging.info(f"New time period: {now_date_str}:{now_hour}, for network: {name}"
+                             f"resetting baseline counters to {current_incoming}/{current_outgoing} bytes.")
 
-            info.current_usage.incoming_bytes = info.saved_incoming + bytes_incoming - info.baseline_incoming
-            info.current_usage.outgoing_bytes = info.saved_outgoing + bytes_outgoing - info.baseline_outgoing
+            info.current_usage.incoming_bytes = info.saved_incoming + current_incoming - info.baseline_incoming
+            info.current_usage.outgoing_bytes = info.saved_outgoing + current_outgoing - info.baseline_outgoing
 
         usages = [iface.current_usage for iface in interface_info_map.values()]
         repository.update(usages)
+        sleep(util.FIFTEEN_SECONDS)
 
 
 def sniff_network():
