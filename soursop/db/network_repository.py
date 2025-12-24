@@ -24,17 +24,18 @@ def get_usage_bytes(date_obj: date, hour: int, network: str) -> tuple[int, int]:
             return incoming, outgoing
 
 
-def update(entry: NetworkUsage):
-    params = (entry.date_str, entry.hour, entry.network, entry.incoming_bytes, entry.outgoing_bytes)
+def update(entries: list[NetworkUsage]):
+    params = [(e.date_str, e.hour, e.network, e.incoming_bytes, e.outgoing_bytes) for e in entries]
     query = """
         INSERT INTO network_usage 
         (date_str, hour, network, incoming_bytes, outgoing_bytes)
         VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(date_str, hour, network) DO 
-        UPDATE SET
+        ON CONFLICT(date_str, hour, network) DO UPDATE SET
             incoming_bytes=excluded.incoming_bytes,
             outgoing_bytes=excluded.outgoing_bytes
     """
+    if not params:
+        return
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute(query, params)

@@ -8,7 +8,7 @@ import psutil
 
 import soursop.db.network_repository as repository
 from soursop import util
-from soursop.beans import NetworkUsage
+from soursop.beans import NetworkUsage, NetworkInterface
 
 
 def get_time_now() -> tuple[date, int]:
@@ -16,7 +16,7 @@ def get_time_now() -> tuple[date, int]:
     return date_now, date_now.hour
 
 
-def get_counters(interface):
+def get_counters(interface: str) -> tuple[int, int]:
     stats = psutil.net_io_counters(pernic=True)
     if interface not in stats:
         raise RuntimeError(f"Interface '{interface}' not found! Available: {list(stats.keys())}")
@@ -24,41 +24,56 @@ def get_counters(interface):
     return iface.bytes_recv, iface.bytes_sent
 
 
-def get_wifi_interface():
+# move to a separate thread in future
+def get_physical_interfaces() -> list[str]:
     net_path = "/sys/class/net/"
-    for interface in os.listdir(net_path):
-        if os.path.isdir(os.path.join(net_path, interface, "wireless")):
-            return interface
-    raise RuntimeError("No Wi-Fi interface found!")
+    return [
+        iface for iface in os.listdir(net_path)
+        if os.path.exists(os.path.join(net_path, iface, "device"))
+    ]
+
+
+def create_network_interface_map(start_date: date,
+                                 start_hour: int,
+                                 interfaces: list[str]) -> dict[str, NetworkInterface]:
+    interface_map = {}
+    for name in interfaces:
+        baseline_incoming, baseline_outgoing = get_counters(name)
+        saved_incoming, saved_outgoing = repository.get_usage_bytes(start_date, start_hour, name)
+        interface_info = NetworkInterface(name=name,
+                                          saved_incoming=saved_incoming, saved_outgoing=saved_outgoing,
+                                          baseline_incoming=baseline_incoming, baseline_outgoing=baseline_outgoing)
+        interface_map[name] = interface_info
+    return interface_map
 
 
 def listen_and_save_usage():
-    wif_name = get_wifi_interface()
+    interfaces = get_physical_interfaces()
     start_date, start_hour = get_time_now()
-    baseline_recv, baseline_sent = get_counters(wif_name)
-    starting_incoming, starting_outgoing = repository.get_usage_bytes(start_date, start_hour, wif_name)
+
+    interface_info_map = create_network_interface_map(start_date, start_hour, interfaces)
 
     while util.RUNNING_FLAG:
         sleep(util.FIFTEEN_SECONDS)
-        new_usage = create_new_usage_entry(wif_name)
-        bytes_recv, bytes_sent = get_counters(wif_name)
+        now_date, now_hour = get_time_now()
+        now_date_str = now_date.strftime(util.DB_DATE_FORMAT)
 
-        if start_hour != new_usage.hour:
-            starting_incoming, starting_outgoing = 0, 0
-            baseline_recv, baseline_sent = bytes_recv, bytes_sent
-            start_hour = new_usage.hour
-            logging.info(f"New date: {new_usage.date_str}, hour: {start_hour}, "
-                         f"resetting baseline counters to {baseline_recv}/{baseline_sent} bytes.")
+        for name, info in interface_info_map.items():
+            info.current_usage = NetworkUsage(network=name, date_str=now_date_str, hour=now_hour)
+            bytes_incoming, bytes_outgoing = get_counters(name)
 
-        new_usage.incoming_bytes = starting_incoming + bytes_recv - baseline_recv
-        new_usage.outgoing_bytes = starting_outgoing + bytes_sent - baseline_sent
-        repository.update(new_usage)
+            if start_hour != now_hour:
+                info.saved_incoming, info.saved_outgoing = 0, 0
+                info.baseline_incoming, info.baseline_incoming = bytes_incoming, bytes_outgoing
+                start_hour = now_hour
+                logging.info(f"New time period: {now_date_str}:{start_hour}, for network: {name}"
+                             f"resetting baseline counters to {bytes_incoming}/{bytes_outgoing} bytes.")
 
+            info.current_usage.incoming_bytes = info.saved_incoming + bytes_incoming - info.baseline_incoming
+            info.current_usage.outgoing_bytes = info.saved_outgoing + bytes_outgoing - info.baseline_outgoing
 
-def create_new_usage_entry(wif_name):
-    now_date, now_hour = get_time_now()
-    now_date_str = now_date.strftime(util.DB_DATE_FORMAT)
-    return NetworkUsage(network=wif_name, date_str=now_date_str, hour=now_hour)
+        usages = [iface.current_usage for iface in interface_info_map.values()]
+        repository.update(usages)
 
 
 def sniff_network():
