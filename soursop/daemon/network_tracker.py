@@ -63,8 +63,7 @@ def listen_and_save_usage():
 
             if start_hour != now_hour:
                 info.saved_incoming, info.saved_outgoing = 0, 0
-                info.baseline_incoming, info.baseline_outgoing= current_incoming, current_outgoing
-                start_hour = now_hour
+                info.baseline_incoming, info.baseline_outgoing = current_incoming, current_outgoing
                 logging.info(f"New time period: {now_date_str}:{now_hour}, for network: {name}"
                              f"resetting baseline counters to {current_incoming}/{current_outgoing} bytes.")
 
@@ -73,6 +72,8 @@ def listen_and_save_usage():
 
         usages = [iface.current_usage for iface in interface_info_map.values()]
         repository.update(usages)
+
+        start_hour = now_hour
         sleep(util.FIFTEEN_SECONDS)
 
 
